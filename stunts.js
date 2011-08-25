@@ -1,24 +1,24 @@
 var degToRad = Math.PI / 180;
-
-var camera;
+var worldScale = 1;
 
 var lightPosition = [0, 2000, 0];
 var carModel = 4;
-var wheelScale = 1.0;
+var wheelScale = 1.0 * worldScale;
 
-var edgeLength = 0.3048 * 205; // each tile is 205-foot wide square
+var edgeLength = 0.3048 * 205 * worldScale; // each tile is 205-foot wide square
 var edgeSize = 1024;
 var hillHeight = 450;
 var scaleFactor = edgeLength / edgeSize;
 var carScaleFactor = scaleFactor / 20;
-var carScaleY = 0.5;
-var trackPosition = [edgeLength, 0, edgeLength]; // the mesh collider doesn't like negative coordinates
+var carScaleY = 0.75;
+var trackPosition = [edgeLength, 0, edgeLength]; // the mesh collider doesn't seem to like negative coordinates
 
 var gl;
 var jl;
 
 var track;
 var car;
+var camera;
 
 function notify(msg, tag) {
     if (!tag) {
@@ -64,12 +64,14 @@ function physicalModel(model) {
     var skin = { vertices: vertices, indices: indices };
     var pos = vec(trackPosition);
     var rot = new jiglib.Matrix3D();
-    var body = new jiglib.JTriangleMesh(skin, pos, rot, 1000, 5);
+    var body = new jiglib.JTriangleMesh(skin, pos, rot, 200, 5 * worldScale);
     return body;
 }
 
 // Initialise a car given with the model number (0-10)
 function initCar(carModel) {
+    jl.setGravity(vec([0, -9.81 * worldScale, 0]));
+
     var carName = cars[carModel % 11];
 
     // Remove the previous car from the physical world
@@ -86,7 +88,7 @@ function initCar(carModel) {
     var startInfo = track.startInfo;
     car.maxSteerAngle = 50;
     car.steerRate = 3;
-    car.driveTorque = 1500;
+    car.driveTorque = 2500 * worldScale * worldScale;
 
     car.setCar(car.maxSteerAngle, car.steerRate, car.driveTorque);
 
@@ -112,7 +114,7 @@ function initCar(carModel) {
     car.get_chassis().set_sideLengths(vec([xmax - xmin, (ymax - ymin) * carScaleY, zmax - zmin]));
 
     var startPosition = [(startInfo.x + 1) * edgeLength,
-			 ymin + (ymax - ymin) * (1 - carScaleY) + wheelData[0].radius * wheelScale,
+			 ymin + (ymax - ymin) * (1 - carScaleY) + wheelData[0].radius * wheelScale + 0.1,
 			 (startInfo.y + 1) * edgeLength];
     if (startInfo.elevated) {
 	startPosition[1] += hillHeight * scaleFactor;
@@ -126,7 +128,7 @@ function initCar(carModel) {
     jl.addBody(car.get_chassis());
 
     // Set up wheels
-    var travel = 0.5;
+    var travel = 0.2;
     var sideFriction = 1.2;
     var fwdFriction = 2.6;
     var restingFrac = 0.2;
@@ -140,6 +142,7 @@ function initCar(carModel) {
 
     for (i = 0; i < wheelData.length; i++) {
 	var pos = vec3.create(wheelData[i].position);
+	vec3.scale(pos, worldScale);
 	vec3.add(pos, car.centre);
 	car.setupWheel(i, vec(pos), sideFriction, fwdFriction, travel, wheelData[i].radius * wheelScale, restingFrac, dampingFrac, rays);
     }
@@ -161,18 +164,18 @@ function initCar(carModel) {
     car.wheelMesh = initMesh(models['wheel']);
 }
 
-// Initialise physics with an infinte plane
+// Initialise physics with an infinite plane
 function initPhysics() {
     jl = jiglib.PhysicsSystem.getInstance();
     jl.setCollisionSystem(true, trackPosition[0], trackPosition[1], trackPosition[2], 60, 30, 60, edgeLength, edgeLength, edgeLength);
-    jl.setSolverType("ACCUMULATED");
-    jl.setGravity(vec([0, -9.81, 0]));
+    jl.setSolverType("NORMAL");
+    //jl.setSolverType("ACCUMULATED");
 
-    var ground = new jiglib.JPlane();
-    ground.set_y(0);
-    ground.set_rotationX(90);
-    ground.set_movable(false);
-    jl.addBody(ground);
+    //var ground = new jiglib.JPlane();
+    //ground.set_y(0);
+    //ground.set_rotationX(90);
+    //ground.set_movable(false);
+    //jl.addBody(ground);
 }
 
 // Initialise WebGL
@@ -442,12 +445,13 @@ function updateScene() {
     vec3.set([carPos.x, carPos.y, carPos.z], tempPos);
 
     var camPos = vec3.create(camera.position);
-    vec3.subtract(camPos, [0, 2, 0]);
+    vec3.subtract(camPos, [0, 2 * worldScale, 0]);
     vec3.subtract(camPos, tempPos);
     vec3.normalize(camPos);
     vec3.scale(camPos, Math.max(camera.distances.near, Math.min(camera.distances.far, vec3.length(camPos))));
-    vec3.add(camPos, [0, 2, 0]);
+    vec3.add(camPos, [0, 2 * worldScale, 0]);
     vec3.add(camPos, tempPos, camera.position);
+    camera.position[1] = Math.max(0.2, camera.position[1]);
 
     // Set camera matrix and light position
     mat4.perspective(45, gl.viewportWidth / gl.viewportHeight, 0.1, 50000, cameraProjection);
@@ -484,7 +488,7 @@ function updateScene() {
 	mat4.translate(worldProjection, tempPos);
 	mat4.rotateY(worldProjection, carWheels[i].getSteerAngle() * degToRad);
 	mat4.rotateX(worldProjection, carWheels[i].getAxisAngle() * degToRad);
-	mat4.scale(worldProjection, [wheelData[i].width, wheelData[i].radius * wheelScale, wheelData[i].radius * wheelScale]);
+	mat4.scale(worldProjection, [wheelData[i].width * wheelScale, wheelData[i].radius * wheelScale, wheelData[i].radius * wheelScale]);
 
 	renderMesh(car.wheelMesh);
     }
@@ -498,12 +502,28 @@ function updateScene() {
 	var ms = Math.min(30, t1 - t0) / (750 * n);
 	t0 = t1;
 
+	var g = carBody.get_currentState().position.y >= 0 ? 1 : -0.2;
+	jl.setGravity(vec([0, -9.81 * worldScale * g, 0]));
+
 	var speed = car.get_chassis().get_currentState().linVelocity.get_length();
 	car.setCar(car.maxSteerAngle, car.steerRate / Math.max(1, (speed - 10) * 0.5), car.driveTorque);
 	for (i = 0; i < n; i++) {
 	    jl.integrate(ms);
 	}
     }
+}
+
+var scale = [scaleFactor, scaleFactor, scaleFactor];
+
+function makeTrans(x, y, elevated, orientation) {
+    var trans = mat4.create();
+
+    mat4.identity(trans);
+    mat4.scale(trans, scale);
+    mat4.translate(trans, [edgeSize * x, elevated ? hillHeight : 0, edgeSize * y]);
+    mat4.rotateY(trans, orientation * Math.PI * 0.5);
+
+    return trans;
 }
 
 function buildTrack(codes) {
@@ -578,24 +598,43 @@ function buildTrack(codes) {
 	}
     }
 
-    var scale = [scaleFactor, scaleFactor, scaleFactor];
-
     var models = [];
+    var physicalModels = [];
+
+    function addModel(model) {
+	models.push(model);
+	physicalModels.push(model);
+    }
 
     for (i = 0; i < terrainItems.length; i++) {
 	var item = terrainItems[i];
-	var model = terrainModels[item.id]; // [[models,orientation]
+	var model = terrainModels[item.id]; // [models,orientation]
 	var orientation = model[1];
 
-	var trans = mat4.create();
-	mat4.identity(trans);
-	mat4.scale(trans, scale);
-	mat4.translate(trans, [edgeSize * item.x, item.elevated ? hillHeight : 0, edgeSize * item.y]);
-	mat4.rotateY(trans, orientation * Math.PI * 0.5);
-
+	var trans = makeTrans(item.x, item.y, item.elevated, orientation);
 	for (j = 0; j < model[0].length; j++) {
 	    models.push({ trans: trans, model: model[0][j] });
 	}
+
+	// Special-casing the lake in the physical model
+	if (model[0][0] == 'lakc') {
+	    physicalModels.push({ trans: makeTrans(item.x, item.y, item.elevated, orientation + 2), model: 'lakc' });
+	} else if (model[0][0] == 'lake') {
+	    continue;
+	} else {
+	    var offset = models.length - model[0].length;
+	    for (j = 0; j < model[0].length; j++) {
+		physicalModels.push(models[offset + j]);
+	    }
+	}
+    }
+
+    // Fence
+    for (i = 0; i < 30; i++) {
+	addModel({ trans: makeTrans(i, 0, false, 0), model: 'fenc' });
+	addModel({ trans: makeTrans(i, 29, false, 2), model: 'fenc' });
+	addModel({ trans: makeTrans(0, i, false, 1), model: 'fenc' });
+	addModel({ trans: makeTrans(29, i, false, 3), model: 'fenc' });
     }
 
     var startInfo;
@@ -607,14 +646,10 @@ function buildTrack(codes) {
 	var x = item.x + 0.5 * (model[2] - 1);
 	var y = item.y + 0.5 * (model[3] - 1);
 
-	var trans = mat4.create();
-	mat4.identity(trans);
-	mat4.scale(trans, scale);
-	mat4.translate(trans, [edgeSize * x, item.elevated ? hillHeight : 0, edgeSize * y]);
-	mat4.rotateY(trans, orientation * Math.PI * 0.5);
+	var trans = makeTrans(x, y, item.elevated, orientation);
 
 	for (j = 0; j < model[0].length; j++) {
-	    models.push({ trans: trans, model: model[0][j] });
+	    addModel({ trans: trans, model: model[0][j] });
 	}
 
 	// Start tile: three materials * four orientations
@@ -630,10 +665,9 @@ function buildTrack(codes) {
 
     // Initialise the graphics and physics for the new track
     track = {};
-    track.model = mergeModels(models);
     track.startInfo = startInfo;
-    track.mesh = initMesh(track.model);
-    track.body = physicalModel(track.model);
+    track.mesh = initMesh(mergeModels(models));
+    track.body = physicalModel(mergeModels(physicalModels));
     track.body.moveTo(vec(trackPosition));
     jl.addBody(track.body);
 

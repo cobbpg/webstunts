@@ -142,8 +142,8 @@
 				continue;
 			}
 			for (i = 0; i < OctreeCell.NUM_CHILDREN; i++ ) {
-				this._cells[cellIndex].childCellIndices[i] =  this._cells.length;
-				cellsToProcess.push( this._cells.length);
+				this._cells[cellIndex].childCellIndices[i] = this._cells.length;
+				cellsToProcess.push(this._cells.length);
 				this._cells.push(new OctreeCell(this.createAABox(this._cells[cellIndex].AABox, i)));
 				
 				childCell = this._cells[this._cells.length - 1];
@@ -234,7 +234,7 @@
 				}
 			}else {
 				for (var i = 0 ; i < OctreeCell.NUM_CHILDREN ; i++) {
-				if ((cell.childCellIndices[i] >= 0) && (cell.childCellIndices[i] <  this._cells.length)) {
+				if ((cell.childCellIndices[i] >= 0) && (cell.childCellIndices[i] < this._cells.length)) {
 					cellsToProcess.push(cell.childCellIndices[i]);
 				}
 				}
@@ -292,7 +292,8 @@
 
 	JOctree.prototype.doesTriangleIntersectCell = function(triangle, cell)
 	{
-
+		return triangle.get_boundingBox().overlapTest(cell.AABox);
+		/*
 		if (!triangle.get_boundingBox().overlapTest(cell.AABox)) {
 			return false;
 		}
@@ -325,6 +326,7 @@
 			}
 		}
 		return false;
+		*/
 		
 	}
 
