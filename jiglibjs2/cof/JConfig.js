@@ -15,7 +15,7 @@
 	JConfig.angVelThreshold =  0.5; // Number
 	JConfig.posThreshold =  0.2; // Number
 	JConfig.orientThreshold =  0.2; // Number
-	JConfig.deactivationTime =  0.5; // Number
+	JConfig.deactivationTime =  10.0; // Number
 	JConfig.numPenetrationRelaxationTimesteps =  10; // Number
 	JConfig.numCollisionIterations =  1; // Number
 	JConfig.numContactIterations =  2; // Number

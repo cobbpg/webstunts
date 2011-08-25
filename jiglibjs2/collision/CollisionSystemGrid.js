@@ -101,9 +101,9 @@
 		min.y = JMath3D.getLimiteNumber(min.y, this.startPoint.y, this.startPoint.y + this.sizeY);
 		min.z = JMath3D.getLimiteNumber(min.z, this.startPoint.z, this.startPoint.z + this.sizeZ);
 		
-		i =   ((min.x - this.startPoint.x / this.dx) % this.nx);
-		j =   ((min.y - this.startPoint.y / this.dy) % this.ny);
-		k =   ((min.z - this.startPoint.z / this.dz) % this.nz);
+		i =  ((min.x - this.startPoint.x) / this.dx) % this.nx;
+		j =  ((min.y - this.startPoint.y) / this.dy) % this.ny;
+		k =  ((min.z - this.startPoint.z) / this.dz) % this.nz;
 		
 		return new Vector3D(i,j,k);
 		
@@ -137,20 +137,20 @@
 		fj = (min.y - this.startPoint.y) / this.dy;
 		fk = (min.z - this.startPoint.z) / this.dz;
 		
-		i =  fi;
-		j =  fj;
-		k =  fk;
+		i = fi;
+		j = fj;
+		k = fk;
 		
 		if (i < 0) { i = 0; fi = 0.0; }
-		else if (i >=  this.nx) { i = 0; fi = 0.0; }
+		else if (i >= this.nx) { i = 0; fi = 0.0; }
 		else fi -= Number(i);
 		
 		if (j < 0) { j = 0; fj = 0.0; }
-		else if (j >=  this.ny) { j = 0; fj = 0.0; }
+		else if (j >= this.ny) { j = 0; fj = 0.0; }
 		else fj -= Number(j);
 		
 		if (k < 0) { k = 0; fk = 0.0; }
-		else if (k >=  this.nz) { k = 0; fk = 0.0; }
+		else if (k >= this.nz) { k = 0; fk = 0.0; }
 		else fk -= Number(k);
 		
 		tempStoreObject.i = i; tempStoreObject.j = j; tempStoreObject.k = k; tempStoreObject.fi = fi; tempStoreObject.fj = fj; tempStoreObject.fk = fk;
@@ -164,7 +164,7 @@
 	{
 
 		var tempStoreVector = this.calcGridForSkin3(colBody);
-		//trace(tempStoreVector.x,tempStoreVector.y,tempStoreVector.z);
+		
 		if (tempStoreVector.x == -1) return -1;
 		return this.calcIndex(tempStoreVector.x, tempStoreVector.y, tempStoreVector.z);
 		
@@ -259,8 +259,8 @@
 		}
 		
 		// todo - work back from the mGridIndex rather than calculating it again...
-		var i; var j; var k;
-		var fi; var fj; var fk;
+		var i, j, k;
+		var fi, fj, fk;
 		var tempStoreObject = this.calcGridForSkin6(colBody);
 		i = tempStoreObject.i; j = tempStoreObject.j; k = tempStoreObject.k; fi = tempStoreObject.fi; fj = tempStoreObject.fj; fk = tempStoreObject.fk;
 		
@@ -291,11 +291,11 @@
 			{
 				for (var dk = -1; dk <= maxK; ++dk)
 				{
-				var thisIndex = this.calcIndex(this.nx + i + di, this.ny + j + dj, this.nz + k + dk); // + ((this.nx*this.ny*this.nz)*0.5);
+				var thisIndex = this.calcIndex(i + di, j + dj, k + dk); // + ((this.nx*this.ny*this.nz)*0.5);
 				//trace("ge", this.gridEntries.length);
 				if (this.gridEntries.length-1 > thisIndex && thisIndex >=0) {
 					var start = this.gridEntries[thisIndex];
-				
+				 
 					//trace(thisIndex,this.gridEntries.length);
 					if (start != null && start.next != null)
 					{
@@ -336,7 +336,7 @@
 				if (body == entry.collisionBody)
 					continue;
 				
-				if (entry.collisionBody && entry.collisionBody.isActive && bodyID > entry.collisionBody.get_id())
+				if (entry.collisionBody.isActive && bodyID > entry.collisionBody.get_id())
 					continue;
 				
 				if (this.checkCollidables(body, entry.collisionBody) && this.detectionFunctors[bodyType + "_" + entry.collisionBody.get_type()] != undefined)
